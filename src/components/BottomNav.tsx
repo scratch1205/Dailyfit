@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom'
-import { Shirt, Palette, CalendarDays } from 'lucide-react'
+import { Shirt, Palette, CalendarDays, User } from 'lucide-react'
 
 const tabs = [
   { to: '/closet', label: '衣橱', icon: Shirt },
   { to: '/builder', label: '搭配', icon: Palette },
   { to: '/calendar', label: '日历', icon: CalendarDays },
+  { to: '/profile', label: '我的', icon: User },
 ]
 
 export default function BottomNav() {

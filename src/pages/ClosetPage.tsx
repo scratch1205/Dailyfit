@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useDailyFitStore } from '../store/dailyfit-store'
 import type { ClothingItem } from '../types'
-import { Upload, X, Tag, Image as ImageIcon, Camera, Trash2, Check } from 'lucide-react'
+import { Upload, X, Tag, Image as ImageIcon, Camera, Trash2, Check, CreditCard as Edit3 } from 'lucide-react'
 import EmptyState from '../components/EmptyState'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
@@ -192,7 +192,12 @@ const ContextMenu: React.FC<{
   onDelete: (id: string) => void
   onUpdate: (id: string, updates: Partial<ClothingItem>) => void
 }> = ({ item, onClose, onDelete, onUpdate }) => {
-  const [showTagEditor, setShowTagEditor] = useState(false)
+  const [showEditor, setShowEditor] = useState(false)
+  const [editName, setEditName] = useState(item.name)
+  const [editCategory, setEditCategory] = useState<Category>(
+    (item.category as Category) || 'tops'
+  )
+  const [editNotes, setEditNotes] = useState(item.notes || '')
   const [currentTags, setCurrentTags] = useState(item.tags || [])
 
   const handleDelete = () => {
@@ -202,21 +207,26 @@ const ContextMenu: React.FC<{
     }
   }
 
-  const handleUpdateTags = (tags: string[]) => {
-    setCurrentTags(tags)
-    onUpdate(item.id, { tags })
+  const handleSaveAll = () => {
+    onUpdate(item.id, {
+      name: editName.trim() || '未命名',
+      category: editCategory,
+      notes: editNotes,
+      tags: currentTags,
+    })
+    setShowEditor(false)
   }
 
   return (
     <Modal isOpen={true} onClose={onClose} title={item.name} maxWidth="sm">
-      {!showTagEditor ? (
+      {!showEditor ? (
         <div className="space-y-2">
           <button
-            onClick={() => setShowTagEditor(true)}
+            onClick={() => setShowEditor(true)}
             className="w-full flex items-center px-4 py-3 text-left text-warm-700 hover:bg-warm-50 rounded-xl pressable"
           >
-            <Tag className="h-5 w-5 mr-3 text-clay-500" />
-            <span className="text-sm font-medium">编辑标签</span>
+            <Edit3 className="h-5 w-5 mr-3 text-clay-500" />
+            <span className="text-sm font-medium">编辑信息</span>
           </button>
           <button
             onClick={handleDelete}
@@ -228,10 +238,60 @@ const ContextMenu: React.FC<{
         </div>
       ) : (
         <div className="space-y-4">
-          <TagEditor tags={currentTags} onChange={handleUpdateTags} />
-          <Button variant="outline" onClick={() => setShowTagEditor(false)} className="w-full">
-            <Check size={16} /> 完成
-          </Button>
+          {/* 名称 */}
+          <div>
+            <label className="block text-sm font-medium text-warm-700 mb-1.5">名称</label>
+            <input
+              type="text"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              maxLength={30}
+              className="w-full px-3 py-2.5 border border-warm-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-clay-400"
+              placeholder="给这件衣物起个名字"
+            />
+          </div>
+          {/* 类别 */}
+          <div>
+            <label className="block text-sm font-medium text-warm-700 mb-1.5">类别</label>
+            <div className="flex gap-1 p-1 bg-warm-100 rounded-xl">
+              {(Object.keys(categoryLabels) as Category[]).map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setEditCategory(cat)}
+                  className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-all pressable ${
+                    editCategory === cat
+                      ? 'bg-white text-clay-600 shadow-sm'
+                      : 'text-warm-500 hover:text-warm-700'
+                  }`}
+                >
+                  {categoryLabels[cat]}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* 标签 */}
+          <TagEditor
+            tags={currentTags}
+            onChange={setCurrentTags}
+          />
+          {/* 备注 */}
+          <div>
+            <label className="block text-sm font-medium text-warm-700 mb-1.5">备注</label>
+            <textarea
+              value={editNotes}
+              onChange={(e) => setEditNotes(e.target.value)}
+              maxLength={200}
+              rows={3}
+              className="w-full px-3 py-2.5 border border-warm-300 rounded-lg text-sm resize-none bg-white focus:outline-none focus:ring-2 focus:ring-clay-400"
+              placeholder="添加备注，如材质、购入地、搭配建议等"
+            />
+          </div>
+          <div className="flex gap-2 pt-2">
+            <Button variant="outline" onClick={() => setShowEditor(false)} className="flex-1">取消</Button>
+            <Button onClick={handleSaveAll} className="flex-1">
+              <Check size={16} /> 保存
+            </Button>
+          </div>
         </div>
       )}
     </Modal>
