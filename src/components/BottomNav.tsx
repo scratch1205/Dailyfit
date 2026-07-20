@@ -1,12 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { Shirt, Palette, CalendarDays } from 'lucide-react'
 
-/**
- * 底部固定导航栏
- * - 三个 Tab：衣橱 / 搭配 / 日历
- * - 最小点击区域 44x44px
- * - 适配 iOS 底部安全区
- */
 const tabs = [
   { to: '/closet', label: '衣橱', icon: Shirt },
   { to: '/builder', label: '搭配', icon: Palette },
@@ -22,8 +16,8 @@ export default function BottomNav() {
             key={to}
             to={to}
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center min-w-tap min-h-tap gap-0.5 rounded-lg transition-colors ${
-                isActive ? 'text-warm-900' : 'text-warm-400 hover:text-warm-600'
+              `flex flex-col items-center justify-center min-w-tap min-h-tap gap-0.5 rounded-lg pressable transition-colors ${
+                isActive ? 'text-clay-600' : 'text-warm-400 hover:text-warm-600'
               }`
             }
           >
