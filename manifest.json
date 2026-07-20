@@ -1,0 +1,69 @@
+{
+  "name": "DailyFit",
+  "short_name": "DailyFit",
+  "description": "每日穿搭记录与规划应用",
+  "lang": "zh-CN",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F9FAFB",
+  "theme_color": "#3B82F6",
+  "start_url": "/",
+  "scope": "/",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192x192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-512x512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [],
+  "related_applications": [],
+  "file_handlers": [],
+  "protocol_handlers": [],
+  "shortcuts": [
+    {
+      "name": "添加新搭配",
+      "short_name": "新搭配",
+      "url": "/outfit-builder",
+      "icons": [
+        {
+          "src": "/icons/shortcut-outfit.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "查看今日穿搭",
+      "short_name": "今日穿搭",
+      "url": "/calendar/today",
+      "icons": [
+        {
+          "src": "/icons/shortcut-today.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}
