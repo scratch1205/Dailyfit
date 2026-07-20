@@ -34,3 +34,12 @@ export interface OutfitRecord {
   createdAt?: string;
   updatedAt?: string;
 }
+
+export interface UserProfile {
+  id: string;
+  nickname: string;
+  bio: string;
+  avatar?: string;
+  createdAt: string;
+  updatedAt: string;
+}

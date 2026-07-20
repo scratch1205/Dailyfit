@@ -1,46 +1,16 @@
 
 import { create } from 'zustand';
+import type { ClothingItem, OutfitRecord, UserProfile } from '../types';
 
 // ============ 类型定义 ============
 export type ClothingType = 'top' | 'bottom' | 'dress' | 'outerwear' | 'shoes' | 'accessories';
 export type ClothingTag = 'casual' | 'formal' | 'sport' | 'street' | 'vintage' | 'minimal';
 
-export interface ClothingItem {
-  id: string;
-  name: string;
-  type: ClothingType;
-  category?: string;
-  color?: string;
-  imageUrl?: string;
-  thumbnailUrl?: string;
-  tags: string[];
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface OutfitRecord {
-  id: string;
-  date: string;
-  clothingIds: string[];
-  topId?: string;
-  bottomId?: string;
-  topImage?: string;
-  bottomImage?: string;
-  compositeImage?: string;
-  photo?: string;
-  thumbnail?: string;
-  rating: number;
-  note?: string;
-  notes?: string;
-  isFavorite?: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-}
+export type { ClothingItem, OutfitRecord, UserProfile } from '../types';
 
 // ============ IndexedDB 服务 ============
 const DB_NAME = 'dailyfit-db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -52,6 +22,9 @@ function openDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains('outfits')) {
         db.createObjectStore('outfits', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('profile')) {
+        db.createObjectStore('profile', { keyPath: 'id' });
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -65,6 +38,17 @@ async function dbGetAll<T>(storeName: string): Promise<T[]> {
     const tx = db.transaction(storeName, 'readonly');
     const store = tx.objectStore(storeName);
     const req = store.getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function dbGet<T>(storeName: string, key: string): Promise<T | undefined> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeName, 'readonly');
+    const store = tx.objectStore(storeName);
+    const req = store.get(key);
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
@@ -110,7 +94,6 @@ async function compressImage(file: File, maxWidth = 800): Promise<{ url: string;
       ctx.drawImage(img, 0, 0, width, height);
       const url = canvas.toDataURL('image/jpeg', 0.8);
 
-      // 缩略图 200x200
       const thumbCanvas = document.createElement('canvas');
       thumbCanvas.width = 200;
       thumbCanvas.height = 200;
@@ -128,15 +111,48 @@ async function compressImage(file: File, maxWidth = 800): Promise<{ url: string;
   });
 }
 
+async function compressAvatar(file: File, size = 256): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d')!;
+      const scale = Math.max(size / img.width, size / img.height);
+      const sw = img.width * scale;
+      const sh = img.height * scale;
+      ctx.drawImage(img, (size - sw) / 2, (size - sh) / 2, sw, sh);
+      URL.revokeObjectURL(img.src);
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = reject;
+  });
+}
+
+const DEFAULT_PROFILE: UserProfile = {
+  id: 'me',
+  nickname: '我的衣橱',
+  bio: '在这里记录你的每日穿搭。',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+};
+
 // ============ Store 定义 ============
 interface DailyFitStore {
-  // 数据（数组形式，页面直接 .filter() 可用）
   clothingItems: ClothingItem[];
   outfitRecords: OutfitRecord[];
-  outfits: OutfitRecord[]; // CalendarPage 用的别名
+  outfits: OutfitRecord[];
+  profile: UserProfile;
   isOnline: boolean;
   isLoading: boolean;
   toast: { type: 'success' | 'error' | 'info'; message: string } | null;
+
+  // 个人资料
+  fetchProfile: () => Promise<void>;
+  updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
+  uploadAvatar: (file: File) => Promise<void>;
 
   // 衣物 CRUD
   fetchClothingItems: () => Promise<void>;
@@ -160,9 +176,38 @@ export const useDailyFitStore = create<DailyFitStore>()((set, get) => ({
   clothingItems: [],
   outfitRecords: [],
   outfits: [],
+  profile: DEFAULT_PROFILE,
   isOnline: navigator.onLine,
   isLoading: false,
   toast: null,
+
+  // ---- 个人资料 ----
+  fetchProfile: async () => {
+    try {
+      const p = await dbGet<UserProfile>('profile', 'me');
+      if (p) set({ profile: p });
+      else await dbPut('profile', DEFAULT_PROFILE);
+    } catch (e) {
+      console.error('fetchProfile failed:', e);
+    }
+  },
+
+  updateProfile: async (updates) => {
+    const current = get().profile;
+    const updated = { ...current, ...updates, updatedAt: new Date().toISOString() };
+    await dbPut('profile', updated);
+    set({ profile: updated });
+  },
+
+  uploadAvatar: async (file) => {
+    if (!file.type.startsWith('image/')) {
+      get().showToast('error', '请选择有效的图片文件');
+      return;
+    }
+    const avatar = await compressAvatar(file);
+    await get().updateProfile({ avatar });
+    get().showToast('success', '头像已更新');
+  },
 
   // ---- 衣物 ----
   fetchClothingItems: async () => {
