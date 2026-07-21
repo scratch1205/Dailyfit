@@ -15,6 +15,7 @@ import {
 import { zhCN } from 'date-fns/locale'
 import { useDailyFitStore } from '../store/dailyfit-store'
 import type { OutfitRecord } from '../types'
+import { type Category, CATEGORIES } from '../config/categories'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
 import { Calendar as CalendarIcon, Sun as SunIcon, ChevronLeft, ChevronRight, Trash2, Shirt } from 'lucide-react'
@@ -303,8 +304,9 @@ const CreateOutfitPanel: React.FC<{
   const [topId, setTopId] = useState<string>('')
   const [bottomId, setBottomId] = useState<string>('')
 
-  const tops = clothingItems.filter((i) => i.type === 'top')
-  const bottoms = clothingItems.filter((i) => i.type === 'bottom')
+  const items = Array.isArray(clothingItems) ? clothingItems : Object.values(clothingItems)
+  const tops = items.filter((i: any) => i.category === 'tops')
+  const bottoms = items.filter((i: any) => i.category === 'bottoms')
 
   const handleSubmit = () => {
     if (!topId || !bottomId) {
@@ -326,7 +328,7 @@ const CreateOutfitPanel: React.FC<{
   return (
     <Modal isOpen={true} onClose={onClose} title={`为 ${format(targetDate, 'M月d日')} 搭配`} maxWidth="sm">
       <div className="space-y-4">
-        {clothingItems.length === 0 ? (
+        {items.length === 0 ? (
           <p className="text-sm text-warm-500 text-center py-4">衣橱还是空的，请先上传衣物</p>
         ) : (
           <>
@@ -340,7 +342,7 @@ const CreateOutfitPanel: React.FC<{
                   className="w-full px-3 py-2.5 border border-warm-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-clay-400"
                 >
                   <option value="">选择上衣...</option>
-                  {tops.map((item) => (
+                  {tops.map((item: any) => (
                     <option key={item.id} value={item.id}>{item.name}</option>
                   ))}
                 </select>
@@ -353,7 +355,7 @@ const CreateOutfitPanel: React.FC<{
                   className="w-full px-3 py-2.5 border border-warm-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-clay-400"
                 >
                   <option value="">选择下装...</option>
-                  {bottoms.map((item) => (
+                  {bottoms.map((item: any) => (
                     <option key={item.id} value={item.id}>{item.name}</option>
                   ))}
                 </select>
@@ -382,7 +384,7 @@ const CreateOutfitPanel: React.FC<{
         )}
         <div className="flex gap-2 pt-2">
           <Button variant="outline" onClick={onClose} className="flex-1">取消</Button>
-          {clothingItems.length > 0 && (
+          {items.length > 0 && (
             <Button onClick={handleSubmit} className="flex-1">保存搭配</Button>
           )}
         </div>

@@ -1,19 +1,36 @@
 import React, { useState, useEffect } from 'react'
 import { useDailyFitStore } from '../store/dailyfit-store'
 import type { ClothingItem, OutfitRecord } from '../types'
+import { type Category, CATEGORIES } from '../config/categories'
 import { format } from 'date-fns'
 import { Shuffle, Save, Star, StarOff, ZoomIn, ZoomOut, Upload, Shirt, Sparkles } from 'lucide-react'
 import EmptyState from '../components/EmptyState'
 import Button from '../components/Button'
 
+interface SlotConfig {
+  category: Category
+  label: string
+  accent: string
+}
+
+const SLOTS: SlotConfig[] = [
+  { category: 'tops', label: '上衣', accent: 'bg-clay-500' },
+  { category: 'bottoms', label: '裤裙', accent: 'bg-slate2-500' },
+  { category: 'shoes', label: '鞋子', accent: 'bg-amber-500' },
+  { category: 'bags', label: '包包', accent: 'bg-emerald-500' },
+]
+
 const OutfitBuilderPage: React.FC = () => {
   const clothingItems = useDailyFitStore((s) => s.clothingItems)
   const addOutfitRecord = useDailyFitStore((s) => s.addOutfitRecord)
-  const getRandomOutfitPair = useDailyFitStore((s) => s.getRandomOutfitPair)
   const isOnline = useDailyFitStore((s) => s.isOnline)
 
-  const [topItem, setTopItem] = useState<ClothingItem | null>(null)
-  const [bottomItem, setBottomItem] = useState<ClothingItem | null>(null)
+  const [selectedItems, setSelectedItems] = useState<Record<Category, ClothingItem | null>>({
+    tops: null,
+    bottoms: null,
+    shoes: null,
+    bags: null,
+  })
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'))
   const [note, setNote] = useState<string>('')
   const [isFavorite, setIsFavorite] = useState<boolean>(false)
@@ -22,36 +39,34 @@ const OutfitBuilderPage: React.FC = () => {
   const [previewScale, setPreviewScale] = useState<number>(1)
 
   const items = Array.isArray(clothingItems) ? clothingItems : Object.values(clothingItems)
-  const tops = items.filter((item: ClothingItem) => item.type === 'top')
-  const bottoms = items.filter((item: ClothingItem) => item.type === 'bottom')
+
+  const itemsByCategory = (cat: Category) =>
+    items.filter((item: ClothingItem) => item.category === cat)
 
   // 初始化随机搭配（仅一次）
   useEffect(() => {
-    if (!topItem && !bottomItem && (tops.length > 0 || bottoms.length > 0)) {
+    const hasAny = SLOTS.some((s) => itemsByCategory(s.category).length > 0)
+    if (hasAny && !Object.values(selectedItems).some((v) => v !== null)) {
       handleRandomOutfit()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleSelectTop = (item: ClothingItem) => {
-    setTopItem(item)
-    useDailyFitStore.getState().showToast('info', `已选择上衣：${item.name}`)
-  }
-
-  const handleSelectBottom = (item: ClothingItem) => {
-    setBottomItem(item)
-    useDailyFitStore.getState().showToast('info', `已选择下装：${item.name}`)
+  const handleSelectItem = (category: Category, item: ClothingItem) => {
+    setSelectedItems((prev) => ({ ...prev, [category]: item }))
+    useDailyFitStore.getState().showToast('info', `已选择${CATEGORIES.find((c) => c.key === category)?.label}：${item.name}`)
   }
 
   const handleRandomOutfit = () => {
-    try {
-      const pair = getRandomOutfitPair()
-      if (pair.top) setTopItem(pair.top)
-      if (pair.bottom) setBottomItem(pair.bottom)
-      useDailyFitStore.getState().showToast('info', '已生成随机搭配')
-    } catch (error) {
-      useDailyFitStore.getState().showToast('error', '无法生成搭配：库存不足')
+    const next = { ...selectedItems }
+    for (const slot of SLOTS) {
+      const pool = itemsByCategory(slot.category)
+      if (pool.length > 0) {
+        next[slot.category] = pool[Math.floor(Math.random() * pool.length)]
+      }
     }
+    setSelectedItems(next)
+    useDailyFitStore.getState().showToast('info', '已生成随机搭配')
   }
 
   const toggleFavorite = () => {
@@ -60,16 +75,19 @@ const OutfitBuilderPage: React.FC = () => {
   }
 
   const handleSaveOutfit = async () => {
-    if (!topItem || !bottomItem) {
-      useDailyFitStore.getState().showToast('error', '请先选择上衣和下装')
+    const hasSelection = Object.values(selectedItems).some((v) => v !== null)
+    if (!hasSelection) {
+      useDailyFitStore.getState().showToast('error', '请至少选择一件衣物')
       return
     }
 
     setIsLoading(true)
     try {
+      const top = selectedItems.tops
+      const bottom = selectedItems.bottoms
       const newOutfit: Omit<OutfitRecord, 'id'> = {
-        topId: topItem.id,
-        bottomId: bottomItem.id,
+        topId: top?.id,
+        bottomId: bottom?.id,
         date: selectedDate,
         note,
         isFavorite,
@@ -128,59 +146,41 @@ const OutfitBuilderPage: React.FC = () => {
         </button>
       </header>
 
-      {/* 组合预览区 */}
+      {/* 组合预览区 - 2x2 网格 */}
       <main
-        className={`flex-1 overflow-hidden transition-all duration-300 ${
-          layoutMode === 'vertical' ? 'flex flex-col' : 'flex flex-row items-center justify-center'
-        }`}
+        className="flex-1 overflow-hidden transition-all duration-300 p-3"
         style={{ transform: `scale(${previewScale})`, transformOrigin: 'center center' }}
       >
-        {/* 上衣区 */}
-        <div
-          className={`relative flex-1 flex items-center justify-center p-4 min-h-[160px] ${
-            topItem ? 'bg-white' : 'bg-warm-50'
-          }`}
-        >
-          {topItem ? (
-            <div className="text-center animate-fade-in">
-              <img
-                src={topItem.imageUrl}
-                alt={topItem.name}
-                className="max-h-[40vh] max-w-full object-contain rounded-xl card-shadow"
-                loading="lazy"
-              />
-              <p className="mt-2 text-sm text-warm-600">{topItem.name}</p>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center text-warm-400">
-              <Shirt size={32} />
-              <p className="text-sm mt-2">点击下方选择上衣</p>
-            </div>
-          )}
-        </div>
-
-        {/* 下装区 */}
-        <div
-          className={`relative flex-1 flex items-center justify-center p-4 min-h-[160px] ${
-            bottomItem ? 'bg-white' : 'bg-warm-50'
-          }`}
-        >
-          {bottomItem ? (
-            <div className="text-center animate-fade-in">
-              <img
-                src={bottomItem.imageUrl}
-                alt={bottomItem.name}
-                className="max-h-[40vh] max-w-full object-contain rounded-xl card-shadow"
-                loading="lazy"
-              />
-              <p className="mt-2 text-sm text-warm-600">{bottomItem.name}</p>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center text-warm-400">
-              <Shirt size={32} />
-              <p className="text-sm mt-2">点击下方选择下装</p>
-            </div>
-          )}
+        <div className="grid grid-cols-2 gap-3 h-full">
+          {SLOTS.map((slot) => {
+            const item = selectedItems[slot.category]
+            return (
+              <div
+                key={slot.category}
+                className={`relative flex items-center justify-center p-3 min-h-[140px] rounded-2xl ${
+                  item ? 'bg-white card-shadow' : 'bg-warm-50'
+                }`}
+              >
+                {item ? (
+                  <div className="text-center animate-fade-in">
+                    <img
+                      src={item.imageUrl}
+                      alt={item.name}
+                      className="max-h-[24vh] max-w-full object-contain rounded-xl"
+                      loading="lazy"
+                    />
+                    <p className="mt-1.5 text-xs text-warm-600 truncate">{item.name}</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center text-warm-400">
+                    <Shirt size={28} />
+                    <p className="text-xs mt-1.5">{slot.label}</p>
+                  </div>
+                )}
+                <span className={`absolute top-2 left-2 w-2 h-2 rounded-full ${slot.accent}`} />
+              </div>
+            )
+          })}
         </div>
       </main>
 
@@ -202,72 +202,41 @@ const OutfitBuilderPage: React.FC = () => {
         </button>
       </div>
 
-      {/* 衣物选择器 */}
-      <section className="bg-white border-t border-warm-200 p-4 mt-2">
-        <h2 className="text-sm font-semibold text-warm-700 mb-2 flex items-center">
-          <span className="inline-block w-2 h-2 bg-clay-500 rounded-full mr-2" />
-          选择上衣
-        </h2>
-        <div className="flex gap-3 overflow-x-auto pb-2 hide-scrollbar">
-          {tops.length === 0 ? (
-            <p className="text-warm-400 text-sm">暂无上衣，请上传</p>
-          ) : (
-            tops.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => handleSelectTop(item)}
-                className={`flex-shrink-0 w-20 border-2 rounded-xl overflow-hidden pressable transition-all ${
-                  topItem?.id === item.id
-                    ? 'border-clay-500 card-shadow'
-                    : 'border-warm-200 hover:border-warm-300'
-                }`}
-                style={{ minWidth: '5rem' }}
-              >
-                <img
-                  src={item.thumbnailUrl || item.imageUrl}
-                  alt={item.name}
-                  className="w-full h-20 object-cover"
-                  loading="lazy"
-                />
-                <p className="text-xs text-center p-1 text-warm-600 truncate">{item.name}</p>
-              </button>
-            ))
-          )}
-        </div>
-      </section>
-
-      <section className="bg-white border-t border-warm-200 p-4 mt-1">
-        <h2 className="text-sm font-semibold text-warm-700 mb-2 flex items-center">
-          <span className="inline-block w-2 h-2 bg-slate2-500 rounded-full mr-2" />
-          选择下装
-        </h2>
-        <div className="flex gap-3 overflow-x-auto pb-2 hide-scrollbar">
-          {bottoms.length === 0 ? (
-            <p className="text-warm-400 text-sm">暂无下装，请上传</p>
-          ) : (
-            bottoms.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => handleSelectBottom(item)}
-                className={`flex-shrink-0 w-20 border-2 rounded-xl overflow-hidden pressable transition-all ${
-                  bottomItem?.id === item.id
-                    ? 'border-slate2-500 card-shadow'
-                    : 'border-warm-200 hover:border-warm-300'
-                }`}
-                style={{ minWidth: '5rem' }}
-              >
-                <img
-                  src={item.thumbnailUrl || item.imageUrl}
-                  alt={item.name}
-                  className="w-full h-20 object-cover"
-                  loading="lazy"
-                />
-                <p className="text-xs text-center p-1 text-warm-600 truncate">{item.name}</p>
-              </button>
-            ))
-          )}
-        </div>
-      </section>
+      {/* 衣物选择器 - 每个类别一行 */}
+      {SLOTS.map((slot) => {
+        const pool = itemsByCategory(slot.category)
+        if (pool.length === 0) return null
+        return (
+          <section key={slot.category} className="bg-white border-t border-warm-200 p-4 mt-1">
+            <h2 className="text-sm font-semibold text-warm-700 mb-2 flex items-center">
+              <span className={`inline-block w-2 h-2 ${slot.accent} rounded-full mr-2`} />
+              选择{slot.label}
+            </h2>
+            <div className="flex gap-3 overflow-x-auto pb-2 hide-scrollbar">
+              {pool.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleSelectItem(slot.category, item)}
+                  className={`flex-shrink-0 w-20 border-2 rounded-xl overflow-hidden pressable transition-all ${
+                    selectedItems[slot.category]?.id === item.id
+                      ? 'border-clay-500 card-shadow'
+                      : 'border-warm-200 hover:border-warm-300'
+                  }`}
+                  style={{ minWidth: '5rem' }}
+                >
+                  <img
+                    src={item.thumbnailUrl || item.imageUrl}
+                    alt={item.name}
+                    className="w-full h-20 object-cover"
+                    loading="lazy"
+                  />
+                  <p className="text-xs text-center p-1 text-warm-600 truncate">{item.name}</p>
+                </button>
+              ))}
+            </div>
+          </section>
+        )
+      })}
 
       {/* 底部操作栏 */}
       <div className="sticky bottom-16 left-0 right-0 bg-white border-t border-warm-200 shadow-lg p-4">
@@ -303,7 +272,7 @@ const OutfitBuilderPage: React.FC = () => {
           </button>
           <Button
             onClick={handleSaveOutfit}
-            disabled={isLoading || !topItem || !bottomItem}
+            disabled={isLoading || !Object.values(selectedItems).some((v) => v !== null)}
             className="flex-1 min-w-[120px]"
           >
             {isLoading ? (
