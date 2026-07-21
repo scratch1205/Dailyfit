@@ -241,6 +241,3 @@ export async function compressImage(
 
   return { url, thumbnailUrl }
 }
-
-
-export { mattingImage, compressImage }

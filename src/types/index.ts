@@ -22,8 +22,12 @@ export interface OutfitRecord {
   clothingIds: string[];
   topId?: string;
   bottomId?: string;
+  shoesId?: string;
+  bagsId?: string;
   topImage?: string;
   bottomImage?: string;
+  shoesImage?: string;
+  bagsImage?: string;
   compositeImage?: string;
   photo?: string;
   thumbnail?: string;

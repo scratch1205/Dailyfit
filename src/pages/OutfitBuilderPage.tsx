@@ -110,9 +110,13 @@ const OutfitBuilderPage: React.FC = () => {
     try {
       const top = selectedItems.tops
       const bottom = selectedItems.bottoms
+      const shoes = selectedItems.shoes
+      const bags = selectedItems.bags
       const newOutfit: Omit<OutfitRecord, 'id'> = {
         topId: top?.id,
         bottomId: bottom?.id,
+        shoesId: shoes?.id,
+        bagsId: bags?.id,
         date: selectedDate,
         note,
         isFavorite,

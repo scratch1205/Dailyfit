@@ -257,15 +257,21 @@ export const useDailyFitStore = create<DailyFitStore>()((set, get) => ({
     const items = get().clothingItems;
     const topItem = recordWithoutId.topId ? items.find((i) => i.id === recordWithoutId.topId) : undefined;
     const bottomItem = recordWithoutId.bottomId ? items.find((i) => i.id === recordWithoutId.bottomId) : undefined;
+    const shoesItem = recordWithoutId.shoesId ? items.find((i) => i.id === recordWithoutId.shoesId) : undefined;
+    const bagsItem = recordWithoutId.bagsId ? items.find((i) => i.id === recordWithoutId.bagsId) : undefined;
 
     const newRecord: OutfitRecord = {
       id: crypto.randomUUID(),
       date: recordWithoutId.date || new Date().toISOString().split('T')[0],
-      clothingIds: [recordWithoutId.topId, recordWithoutId.bottomId].filter(Boolean) as string[],
+      clothingIds: [recordWithoutId.topId, recordWithoutId.bottomId, recordWithoutId.shoesId, recordWithoutId.bagsId].filter(Boolean) as string[],
       topId: recordWithoutId.topId,
       bottomId: recordWithoutId.bottomId,
+      shoesId: recordWithoutId.shoesId,
+      bagsId: recordWithoutId.bagsId,
       topImage: topItem?.thumbnailUrl || topItem?.imageUrl,
       bottomImage: bottomItem?.thumbnailUrl || bottomItem?.imageUrl,
+      shoesImage: shoesItem?.thumbnailUrl || shoesItem?.imageUrl,
+      bagsImage: bagsItem?.thumbnailUrl || bagsItem?.imageUrl,
       rating: recordWithoutId.rating ?? 0,
       note: recordWithoutId.note || recordWithoutId.notes || '',
       notes: recordWithoutId.notes || recordWithoutId.note || '',

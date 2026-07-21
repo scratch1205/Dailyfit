@@ -150,21 +150,21 @@ const CalendarPage: React.FC = () => {
         </span>
 
         <div className="flex-1 w-full relative overflow-hidden rounded-md bg-warm-100 min-h-[24px]">
-          {hasOutfit && outfit?.topImage && outfit?.bottomImage ? (
-            <>
-              <img
-                src={outfit.topImage}
-                alt=""
-                className="absolute inset-0 w-full h-1/2 object-cover"
-                loading="lazy"
-              />
-              <img
-                src={outfit.bottomImage}
-                alt=""
-                className="absolute bottom-0 left-0 w-full h-1/2 object-cover"
-                loading="lazy"
-              />
-            </>
+          {hasOutfit && outfit && (outfit.topImage || outfit.bottomImage || outfit.shoesImage || outfit.bagsImage) ? (
+            <div className="grid grid-cols-2 grid-rows-2 w-full h-full gap-px">
+              {outfit.topImage ? (
+                <img src={outfit.topImage} alt="" className="w-full h-full object-cover" loading="lazy" />
+              ) : <div className="w-full h-full" />}
+              {outfit.bottomImage ? (
+                <img src={outfit.bottomImage} alt="" className="w-full h-full object-cover" loading="lazy" />
+              ) : <div className="w-full h-full" />}
+              {outfit.shoesImage ? (
+                <img src={outfit.shoesImage} alt="" className="w-full h-full object-cover" loading="lazy" />
+              ) : <div className="w-full h-full" />}
+              {outfit.bagsImage ? (
+                <img src={outfit.bagsImage} alt="" className="w-full h-full object-cover" loading="lazy" />
+              ) : <div className="w-full h-full" />}
+            </div>
           ) : (
             <div className="flex items-center justify-center w-full h-full text-warm-300">
               {isPast ? <SunIcon size={14} /> : <CalendarIcon size={14} />}
@@ -234,10 +234,20 @@ const CalendarPage: React.FC = () => {
         <Modal isOpen={true} onClose={closeAllPanels} title="搭配详情" maxWidth="sm">
           <div className="space-y-4">
             <div className="aspect-[3/4] bg-warm-100 rounded-xl overflow-hidden">
-              {activeOutfit.topImage && activeOutfit.bottomImage ? (
-                <div className="w-full h-full">
-                  <img src={activeOutfit.topImage} alt="" className="w-full h-1/2 object-cover" />
-                  <img src={activeOutfit.bottomImage} alt="" className="w-full h-1/2 object-cover" />
+              {(activeOutfit.topImage || activeOutfit.bottomImage || activeOutfit.shoesImage || activeOutfit.bagsImage) ? (
+                <div className="grid grid-cols-2 grid-rows-2 w-full h-full gap-px">
+                  {activeOutfit.topImage ? (
+                    <img src={activeOutfit.topImage} alt="" className="w-full h-full object-cover" />
+                  ) : <div className="w-full h-full" />}
+                  {activeOutfit.bottomImage ? (
+                    <img src={activeOutfit.bottomImage} alt="" className="w-full h-full object-cover" />
+                  ) : <div className="w-full h-full" />}
+                  {activeOutfit.shoesImage ? (
+                    <img src={activeOutfit.shoesImage} alt="" className="w-full h-full object-cover" />
+                  ) : <div className="w-full h-full" />}
+                  {activeOutfit.bagsImage ? (
+                    <img src={activeOutfit.bagsImage} alt="" className="w-full h-full object-cover" />
+                  ) : <div className="w-full h-full" />}
                 </div>
               ) : (
                 <div className="flex items-center justify-center w-full h-full text-warm-400">
@@ -258,6 +268,22 @@ const CalendarPage: React.FC = () => {
                 <h4 className="text-xs font-medium text-warm-500 mb-1.5">下装</h4>
                 {activeOutfit.bottomImage ? (
                   <img src={activeOutfit.bottomImage} alt="" className="w-full h-20 object-cover rounded-lg" />
+                ) : (
+                  <div className="w-full h-20 bg-warm-100 rounded-lg" />
+                )}
+              </div>
+              <div>
+                <h4 className="text-xs font-medium text-warm-500 mb-1.5">鞋子</h4>
+                {activeOutfit.shoesImage ? (
+                  <img src={activeOutfit.shoesImage} alt="" className="w-full h-20 object-cover rounded-lg" />
+                ) : (
+                  <div className="w-full h-20 bg-warm-100 rounded-lg" />
+                )}
+              </div>
+              <div>
+                <h4 className="text-xs font-medium text-warm-500 mb-1.5">包包</h4>
+                {activeOutfit.bagsImage ? (
+                  <img src={activeOutfit.bagsImage} alt="" className="w-full h-20 object-cover rounded-lg" />
                 ) : (
                   <div className="w-full h-20 bg-warm-100 rounded-lg" />
                 )}
