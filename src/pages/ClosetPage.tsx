@@ -1,17 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useDailyFitStore } from '../store/dailyfit-store'
 import type { ClothingItem } from '../types'
-import { Upload, X, Tag, Image as ImageIcon, Camera, Trash2, Check, CreditCard as Edit3 } from 'lucide-react'
+import { type Category, CATEGORIES, categoryLabels } from '../config/categories'
+import { Upload, X, Image as ImageIcon, Camera, Trash2, Check, CreditCard as Edit3, Scissors } from 'lucide-react'
 import EmptyState from '../components/EmptyState'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
-
-type Category = 'tops' | 'bottoms'
-
-const categoryLabels: Record<Category, string> = {
-  tops: '上衣',
-  bottoms: '裤子/裙子',
-}
 
 const ClothingCard: React.FC<{
   item: ClothingItem
@@ -238,7 +232,6 @@ const ContextMenu: React.FC<{
         </div>
       ) : (
         <div className="space-y-4">
-          {/* 名称 */}
           <div>
             <label className="block text-sm font-medium text-warm-700 mb-1.5">名称</label>
             <input
@@ -250,31 +243,25 @@ const ContextMenu: React.FC<{
               placeholder="给这件衣物起个名字"
             />
           </div>
-          {/* 类别 */}
           <div>
             <label className="block text-sm font-medium text-warm-700 mb-1.5">类别</label>
-            <div className="flex gap-1 p-1 bg-warm-100 rounded-xl">
-              {(Object.keys(categoryLabels) as Category[]).map((cat) => (
+            <div className="grid grid-cols-4 gap-1 p-1 bg-warm-100 rounded-xl">
+              {CATEGORIES.map((cat) => (
                 <button
-                  key={cat}
-                  onClick={() => setEditCategory(cat)}
-                  className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-all pressable ${
-                    editCategory === cat
+                  key={cat.key}
+                  onClick={() => setEditCategory(cat.key)}
+                  className={`px-2 py-2 text-xs font-medium rounded-lg transition-all pressable ${
+                    editCategory === cat.key
                       ? 'bg-white text-clay-600 shadow-sm'
                       : 'text-warm-500 hover:text-warm-700'
                   }`}
                 >
-                  {categoryLabels[cat]}
+                  {cat.label}
                 </button>
               ))}
             </div>
           </div>
-          {/* 标签 */}
-          <TagEditor
-            tags={currentTags}
-            onChange={setCurrentTags}
-          />
-          {/* 备注 */}
+          <TagEditor tags={currentTags} onChange={setCurrentTags} />
           <div>
             <label className="block text-sm font-medium text-warm-700 mb-1.5">备注</label>
             <textarea
@@ -304,6 +291,7 @@ const ClosetPage: React.FC = () => {
   const [contextMenu, setContextMenu] = useState<ClothingItem | null>(null)
   const [uploadProgress, setUploadProgress] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [useMatting, setUseMatting] = useState(true)
 
   const {
     clothingItems,
@@ -331,6 +319,7 @@ const ClosetPage: React.FC = () => {
 
   const items = Array.isArray(clothingItems) ? clothingItems : Object.values(clothingItems)
   const filteredItems = items.filter((item: ClothingItem) => item.category === activeCategory)
+  const categoryCount = (cat: Category) => items.filter((i: ClothingItem) => i.category === cat).length
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
@@ -360,10 +349,10 @@ const ClosetPage: React.FC = () => {
 
     setUploadProgress(0)
     try {
-      await addClothingItem(file, activeCategory, (progress) => {
+      await addClothingItem(file, activeCategory, useMatting, (progress) => {
         setUploadProgress(progress)
       })
-      useDailyFitStore.getState().showToast('success', '衣物已添加')
+      useDailyFitStore.getState().showToast('success', useMatting ? '衣物已添加（已抠图）' : '衣物已添加')
       if (fileInputRef.current) fileInputRef.current.value = ''
     } catch (error) {
       console.error('上传衣物失败:', error)
@@ -406,21 +395,36 @@ const ClosetPage: React.FC = () => {
     <div className="min-h-dvh bg-cream pb-24">
       {/* 顶部标题 */}
       <header className="sticky top-0 z-20 bg-cream/95 backdrop-blur border-b border-warm-200 px-4 pt-4 pb-3">
-        <h1 className="text-2xl font-bold text-warm-900 mb-3">我的衣橱</h1>
+        <div className="flex items-center justify-between mb-3">
+          <h1 className="text-2xl font-bold text-warm-900">我的衣橱</h1>
+          <button
+            onClick={() => setUseMatting((v) => !v)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full pressable transition-colors ${
+              useMatting
+                ? 'bg-clay-50 text-clay-600 border border-clay-200'
+                : 'bg-warm-100 text-warm-500 border border-warm-200'
+            }`}
+            aria-label="切换智能抠图"
+          >
+            <Scissors size={14} />
+            智能抠图 {useMatting ? '开' : '关'}
+          </button>
+        </div>
 
-        {/* 分类切换 */}
-        <div className="flex gap-1 p-1 bg-warm-100 rounded-xl">
-          {(Object.keys(categoryLabels) as Category[]).map((cat) => (
+        {/* 分类切换 - 横向可滚动 */}
+        <div className="flex gap-1 p-1 bg-warm-100 rounded-xl overflow-x-auto hide-scrollbar">
+          {CATEGORIES.map((cat) => (
             <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-all pressable ${
-                activeCategory === cat
+              key={cat.key}
+              onClick={() => setActiveCategory(cat.key)}
+              className={`flex-shrink-0 px-4 py-2 text-sm font-medium rounded-lg transition-all pressable ${
+                activeCategory === cat.key
                   ? 'bg-white text-clay-600 shadow-sm'
                   : 'text-warm-500 hover:text-warm-700'
               }`}
             >
-              {categoryLabels[cat]}
+              {cat.label}
+              <span className="ml-1 text-xs opacity-60">{categoryCount(cat.key)}</span>
             </button>
           ))}
         </div>
@@ -447,7 +451,7 @@ const ClosetPage: React.FC = () => {
         {uploadProgress !== null && (
           <div className="mt-3 animate-fade-in">
             <div className="flex justify-between text-xs text-warm-500 mb-1">
-              <span>上传中...</span>
+              <span>{useMatting ? '抠图处理中...' : '上传中...'}</span>
               <span>{Math.round(uploadProgress)}%</span>
             </div>
             <div className="w-full bg-warm-200 rounded-full h-1.5 overflow-hidden">
@@ -473,11 +477,11 @@ const ClosetPage: React.FC = () => {
         ) : filteredItems.length === 0 ? (
           <EmptyState
             icon={<ImageIcon size={32} />}
-            title="衣橱还是空的"
+            title={`${categoryLabels[activeCategory]}还是空的`}
             description="上传第一件衣物，开始打造你的数字衣橱"
             action={
               <Button onClick={handleSelectFromAlbum}>
-                <Upload size={16} /> 上传衣物
+                <Upload size={16} /> 上传{categoryLabels[activeCategory]}
               </Button>
             }
           />

@@ -15,6 +15,7 @@ import {
 import { zhCN } from 'date-fns/locale'
 import { useDailyFitStore } from '../store/dailyfit-store'
 import type { OutfitRecord } from '../types'
+import { type Category, CATEGORIES } from '../config/categories'
 import Modal from '../components/Modal'
 import Button from '../components/Button'
 import { Calendar as CalendarIcon, Sun as SunIcon, ChevronLeft, ChevronRight, Trash2, Shirt } from 'lucide-react'
@@ -149,21 +150,21 @@ const CalendarPage: React.FC = () => {
         </span>
 
         <div className="flex-1 w-full relative overflow-hidden rounded-md bg-warm-100 min-h-[24px]">
-          {hasOutfit && outfit?.topImage && outfit?.bottomImage ? (
-            <>
-              <img
-                src={outfit.topImage}
-                alt=""
-                className="absolute inset-0 w-full h-1/2 object-cover"
-                loading="lazy"
-              />
-              <img
-                src={outfit.bottomImage}
-                alt=""
-                className="absolute bottom-0 left-0 w-full h-1/2 object-cover"
-                loading="lazy"
-              />
-            </>
+          {hasOutfit && outfit && (outfit.topImage || outfit.bottomImage || outfit.shoesImage || outfit.bagsImage) ? (
+            <div className="grid grid-cols-2 grid-rows-2 w-full h-full gap-px">
+              {outfit.topImage ? (
+                <img src={outfit.topImage} alt="" className="w-full h-full object-cover" loading="lazy" />
+              ) : <div className="w-full h-full" />}
+              {outfit.bottomImage ? (
+                <img src={outfit.bottomImage} alt="" className="w-full h-full object-cover" loading="lazy" />
+              ) : <div className="w-full h-full" />}
+              {outfit.shoesImage ? (
+                <img src={outfit.shoesImage} alt="" className="w-full h-full object-cover" loading="lazy" />
+              ) : <div className="w-full h-full" />}
+              {outfit.bagsImage ? (
+                <img src={outfit.bagsImage} alt="" className="w-full h-full object-cover" loading="lazy" />
+              ) : <div className="w-full h-full" />}
+            </div>
           ) : (
             <div className="flex items-center justify-center w-full h-full text-warm-300">
               {isPast ? <SunIcon size={14} /> : <CalendarIcon size={14} />}
@@ -233,10 +234,20 @@ const CalendarPage: React.FC = () => {
         <Modal isOpen={true} onClose={closeAllPanels} title="搭配详情" maxWidth="sm">
           <div className="space-y-4">
             <div className="aspect-[3/4] bg-warm-100 rounded-xl overflow-hidden">
-              {activeOutfit.topImage && activeOutfit.bottomImage ? (
-                <div className="w-full h-full">
-                  <img src={activeOutfit.topImage} alt="" className="w-full h-1/2 object-cover" />
-                  <img src={activeOutfit.bottomImage} alt="" className="w-full h-1/2 object-cover" />
+              {(activeOutfit.topImage || activeOutfit.bottomImage || activeOutfit.shoesImage || activeOutfit.bagsImage) ? (
+                <div className="grid grid-cols-2 grid-rows-2 w-full h-full gap-px">
+                  {activeOutfit.topImage ? (
+                    <img src={activeOutfit.topImage} alt="" className="w-full h-full object-cover" />
+                  ) : <div className="w-full h-full" />}
+                  {activeOutfit.bottomImage ? (
+                    <img src={activeOutfit.bottomImage} alt="" className="w-full h-full object-cover" />
+                  ) : <div className="w-full h-full" />}
+                  {activeOutfit.shoesImage ? (
+                    <img src={activeOutfit.shoesImage} alt="" className="w-full h-full object-cover" />
+                  ) : <div className="w-full h-full" />}
+                  {activeOutfit.bagsImage ? (
+                    <img src={activeOutfit.bagsImage} alt="" className="w-full h-full object-cover" />
+                  ) : <div className="w-full h-full" />}
                 </div>
               ) : (
                 <div className="flex items-center justify-center w-full h-full text-warm-400">
@@ -257,6 +268,22 @@ const CalendarPage: React.FC = () => {
                 <h4 className="text-xs font-medium text-warm-500 mb-1.5">下装</h4>
                 {activeOutfit.bottomImage ? (
                   <img src={activeOutfit.bottomImage} alt="" className="w-full h-20 object-cover rounded-lg" />
+                ) : (
+                  <div className="w-full h-20 bg-warm-100 rounded-lg" />
+                )}
+              </div>
+              <div>
+                <h4 className="text-xs font-medium text-warm-500 mb-1.5">鞋子</h4>
+                {activeOutfit.shoesImage ? (
+                  <img src={activeOutfit.shoesImage} alt="" className="w-full h-20 object-cover rounded-lg" />
+                ) : (
+                  <div className="w-full h-20 bg-warm-100 rounded-lg" />
+                )}
+              </div>
+              <div>
+                <h4 className="text-xs font-medium text-warm-500 mb-1.5">包包</h4>
+                {activeOutfit.bagsImage ? (
+                  <img src={activeOutfit.bagsImage} alt="" className="w-full h-20 object-cover rounded-lg" />
                 ) : (
                   <div className="w-full h-20 bg-warm-100 rounded-lg" />
                 )}
@@ -303,8 +330,9 @@ const CreateOutfitPanel: React.FC<{
   const [topId, setTopId] = useState<string>('')
   const [bottomId, setBottomId] = useState<string>('')
 
-  const tops = clothingItems.filter((i) => i.type === 'top')
-  const bottoms = clothingItems.filter((i) => i.type === 'bottom')
+  const items = Array.isArray(clothingItems) ? clothingItems : Object.values(clothingItems)
+  const tops = items.filter((i: any) => i.category === 'tops')
+  const bottoms = items.filter((i: any) => i.category === 'bottoms')
 
   const handleSubmit = () => {
     if (!topId || !bottomId) {
@@ -326,7 +354,7 @@ const CreateOutfitPanel: React.FC<{
   return (
     <Modal isOpen={true} onClose={onClose} title={`为 ${format(targetDate, 'M月d日')} 搭配`} maxWidth="sm">
       <div className="space-y-4">
-        {clothingItems.length === 0 ? (
+        {items.length === 0 ? (
           <p className="text-sm text-warm-500 text-center py-4">衣橱还是空的，请先上传衣物</p>
         ) : (
           <>
@@ -340,7 +368,7 @@ const CreateOutfitPanel: React.FC<{
                   className="w-full px-3 py-2.5 border border-warm-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-clay-400"
                 >
                   <option value="">选择上衣...</option>
-                  {tops.map((item) => (
+                  {tops.map((item: any) => (
                     <option key={item.id} value={item.id}>{item.name}</option>
                   ))}
                 </select>
@@ -353,7 +381,7 @@ const CreateOutfitPanel: React.FC<{
                   className="w-full px-3 py-2.5 border border-warm-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-clay-400"
                 >
                   <option value="">选择下装...</option>
-                  {bottoms.map((item) => (
+                  {bottoms.map((item: any) => (
                     <option key={item.id} value={item.id}>{item.name}</option>
                   ))}
                 </select>
@@ -382,7 +410,7 @@ const CreateOutfitPanel: React.FC<{
         )}
         <div className="flex gap-2 pt-2">
           <Button variant="outline" onClick={onClose} className="flex-1">取消</Button>
-          {clothingItems.length > 0 && (
+          {items.length > 0 && (
             <Button onClick={handleSubmit} className="flex-1">保存搭配</Button>
           )}
         </div>

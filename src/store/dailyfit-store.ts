@@ -1,11 +1,10 @@
-
 import { create } from 'zustand';
 import type { ClothingItem, OutfitRecord, UserProfile } from '../types';
+import { type Category, categoryToType } from '../config/categories';
+import { mattingImage, compressImage } from '../utils/image-matting';
 
-// ============ 类型定义 ============
-export type ClothingType = 'top' | 'bottom' | 'dress' | 'outerwear' | 'shoes' | 'accessories';
-export type ClothingTag = 'casual' | 'formal' | 'sport' | 'street' | 'vintage' | 'minimal';
-
+// Re-export for convenience
+export type { Category } from '../config/categories';
 export type { ClothingItem, OutfitRecord, UserProfile } from '../types';
 
 // ============ IndexedDB 服务 ============
@@ -76,41 +75,7 @@ async function dbDelete(storeName: string, id: string): Promise<void> {
   });
 }
 
-// ============ 图片压缩 ============
-async function compressImage(file: File, maxWidth = 800): Promise<{ url: string; thumbnailUrl: string }> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.src = URL.createObjectURL(file);
-    img.onload = () => {
-      let { width, height } = img;
-      if (width > maxWidth) {
-        height = (height * maxWidth) / width;
-        width = maxWidth;
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d')!;
-      ctx.drawImage(img, 0, 0, width, height);
-      const url = canvas.toDataURL('image/jpeg', 0.8);
-
-      const thumbCanvas = document.createElement('canvas');
-      thumbCanvas.width = 200;
-      thumbCanvas.height = 200;
-      const tCtx = thumbCanvas.getContext('2d')!;
-      const scale = Math.max(200 / width, 200 / height);
-      const sw = width * scale;
-      const sh = height * scale;
-      tCtx.drawImage(canvas, (200 - sw) / 2, (200 - sh) / 2, sw, sh);
-      const thumbnailUrl = thumbCanvas.toDataURL('image/jpeg', 0.7);
-
-      URL.revokeObjectURL(img.src);
-      resolve({ url, thumbnailUrl });
-    };
-    img.onerror = reject;
-  });
-}
-
+// ============ 头像压缩 ============
 async function compressAvatar(file: File, size = 256): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -156,7 +121,12 @@ interface DailyFitStore {
 
   // 衣物 CRUD
   fetchClothingItems: () => Promise<void>;
-  addClothingItem: (file: File, category: string, onProgress?: (p: number) => void) => Promise<void>;
+  addClothingItem: (
+    file: File,
+    category: Category,
+    useMatting: boolean,
+    onProgress?: (p: number) => void
+  ) => Promise<void>;
   updateClothingItem: (id: string, updates: Partial<ClothingItem>) => Promise<void>;
   deleteClothingItem: (id: string) => Promise<void>;
 
@@ -167,7 +137,6 @@ interface DailyFitStore {
   deleteOutfitRecord: (id: string) => Promise<void>;
 
   // 工具
-  getRandomOutfitPair: () => { top: ClothingItem | null; bottom: ClothingItem | null };
   showToast: (type: 'success' | 'error' | 'info', message: string) => void;
   clearToast: () => void;
 }
@@ -219,12 +188,25 @@ export const useDailyFitStore = create<DailyFitStore>()((set, get) => ({
     }
   },
 
-  addClothingItem: async (file, category, onProgress) => {
+  addClothingItem: async (file, category, useMatting, onProgress) => {
     onProgress?.(10);
-    const { url, thumbnailUrl } = await compressImage(file);
+
+    let url: string;
+    let thumbnailUrl: string;
+
+    if (useMatting) {
+      const result = await mattingImage(file, { maxWidth: 800, tolerance: 32 });
+      url = result.url;
+      thumbnailUrl = result.thumbnailUrl;
+    } else {
+      const result = await compressImage(file, 800);
+      url = result.url;
+      thumbnailUrl = result.thumbnailUrl;
+    }
+
     onProgress?.(70);
 
-    const type: ClothingType = category === 'tops' ? 'top' : 'bottom';
+    const type = categoryToType[category];
     const newItem: ClothingItem = {
       id: crypto.randomUUID(),
       name: file.name.replace(/\.[^.]+$/, '') || '未命名',
@@ -275,15 +257,21 @@ export const useDailyFitStore = create<DailyFitStore>()((set, get) => ({
     const items = get().clothingItems;
     const topItem = recordWithoutId.topId ? items.find((i) => i.id === recordWithoutId.topId) : undefined;
     const bottomItem = recordWithoutId.bottomId ? items.find((i) => i.id === recordWithoutId.bottomId) : undefined;
+    const shoesItem = recordWithoutId.shoesId ? items.find((i) => i.id === recordWithoutId.shoesId) : undefined;
+    const bagsItem = recordWithoutId.bagsId ? items.find((i) => i.id === recordWithoutId.bagsId) : undefined;
 
     const newRecord: OutfitRecord = {
       id: crypto.randomUUID(),
       date: recordWithoutId.date || new Date().toISOString().split('T')[0],
-      clothingIds: [recordWithoutId.topId, recordWithoutId.bottomId].filter(Boolean) as string[],
+      clothingIds: [recordWithoutId.topId, recordWithoutId.bottomId, recordWithoutId.shoesId, recordWithoutId.bagsId].filter(Boolean) as string[],
       topId: recordWithoutId.topId,
       bottomId: recordWithoutId.bottomId,
+      shoesId: recordWithoutId.shoesId,
+      bagsId: recordWithoutId.bagsId,
       topImage: topItem?.thumbnailUrl || topItem?.imageUrl,
       bottomImage: bottomItem?.thumbnailUrl || bottomItem?.imageUrl,
+      shoesImage: shoesItem?.thumbnailUrl || shoesItem?.imageUrl,
+      bagsImage: bagsItem?.thumbnailUrl || bagsItem?.imageUrl,
       rating: recordWithoutId.rating ?? 0,
       note: recordWithoutId.note || recordWithoutId.notes || '',
       notes: recordWithoutId.notes || recordWithoutId.note || '',
@@ -320,16 +308,6 @@ export const useDailyFitStore = create<DailyFitStore>()((set, get) => ({
   },
 
   // ---- 工具 ----
-  getRandomOutfitPair: () => {
-    const items = get().clothingItems;
-    const tops = items.filter((i) => i.type === 'top');
-    const bottoms = items.filter((i) => i.type === 'bottom');
-    return {
-      top: tops.length > 0 ? tops[Math.floor(Math.random() * tops.length)] : null,
-      bottom: bottoms.length > 0 ? bottoms[Math.floor(Math.random() * bottoms.length)] : null,
-    };
-  },
-
   showToast: (type, message) => {
     set({ toast: { type, message } });
     setTimeout(() => set({ toast: null }), 3000);
